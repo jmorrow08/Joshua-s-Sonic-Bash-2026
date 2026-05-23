@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sonic-blue: #0a2a6b;
+  --sonic-electric: #1e4dd8;
+  --sonic-gold: #f5c518;
+  --sonic-red: #e11d2e;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #ffffff;
+  color: #0f172a;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .sonic-gradient {
+    background: linear-gradient(135deg, #0a2a6b 0%, #1e4dd8 50%, #3b82f6 100%);
+  }
+
+  .sonic-text-gradient {
+    background: linear-gradient(90deg, #f5c518 0%, #ffd84d 50%, #f5c518 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .ring-rings {
+    background-image: radial-gradient(
+        circle at 20% 30%,
+        rgba(245, 197, 24, 0.18) 0,
+        rgba(245, 197, 24, 0) 14px
+      ),
+      radial-gradient(
+        circle at 80% 60%,
+        rgba(245, 197, 24, 0.14) 0,
+        rgba(245, 197, 24, 0) 12px
+      ),
+      radial-gradient(
+        circle at 65% 20%,
+        rgba(245, 197, 24, 0.12) 0,
+        rgba(245, 197, 24, 0) 10px
+      );
+  }
+}
