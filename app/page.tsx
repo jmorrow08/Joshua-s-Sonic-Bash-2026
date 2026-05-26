@@ -1,4 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
+import Image from "next/image";
 import {
   Calendar,
   Clock,
@@ -62,32 +63,17 @@ export default async function Home() {
             </p>
           </div>
 
-          {/* Flyer placeholder */}
-          <div className="mx-auto mt-8 max-w-2xl">
-            <div className="group relative aspect-[4/5] overflow-hidden rounded-3xl border-4 border-sonic-gold/60 bg-sonic-blue/40 shadow-2xl sm:aspect-[3/4]">
-              <div
-                aria-hidden
-                className="absolute inset-0 flex items-center justify-center"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(135deg, rgba(10,42,107,0.85) 0%, rgba(30,77,216,0.85) 60%, rgba(59,130,246,0.85) 100%)",
-                }}
-              >
-                <div className="text-center text-white">
-                  <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-sonic-gold text-sonic-blue shadow-gold sm:h-32 sm:w-32">
-                    <PartyPopper className="h-12 w-12 sm:h-16 sm:w-16" />
-                  </div>
-                  <p className="font-display text-2xl font-black sm:text-3xl">
-                    Flyer goes here
-                  </p>
-                  <p className="mt-1 text-sm text-white/70 sm:text-base">
-                    Drop the party flyer image in this slot
-                  </p>
-                </div>
-              </div>
-              {/* When you have a real flyer, replace the placeholder above with:
-                  <Image src="/flyer.jpg" alt="JJ's 5th Birthday Bash flyer" fill className="object-cover" priority />
-              */}
+          {/* Flyer */}
+          <div className="mx-auto mt-8 max-w-md sm:max-w-lg">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-3xl border-4 border-sonic-gold/60 bg-sonic-blue/40 shadow-2xl">
+              <Image
+                src="/flyer.jpg"
+                alt="Sonic's Birthday Bash — Joshua is turning 5 — Saturday June 13, 2026, 3:30 PM–6:30 PM at Makutu Island, 6900 W Chandler Blvd, Chandler AZ 82509. RSVP online or call/text (602) 816-2383."
+                fill
+                sizes="(min-width: 640px) 512px, 90vw"
+                className="object-cover"
+                priority
+              />
             </div>
           </div>
 
