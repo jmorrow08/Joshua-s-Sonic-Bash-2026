@@ -9,6 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { getAdminClient } from "@/lib/supabase-admin";
+import MassText from "@/components/MassText";
 
 const KID_CAPACITY = Number(process.env.NEXT_PUBLIC_KID_CAPACITY || 20);
 
@@ -125,6 +126,21 @@ export default async function AdminPage({
               Check that <code>SUPABASE_SERVICE_ROLE_KEY</code> is set in your
               environment.
             </p>
+          </div>
+        )}
+
+        {/* Mass text composer */}
+        {!loadError && rsvps.length > 0 && (
+          <div className="mb-6">
+            <MassText
+              recipients={rsvps.map((r) => ({
+                id: r.id,
+                name: parentName(r),
+                phone: r.phone,
+                attending: r.attending,
+                is_waitlist: r.is_waitlist,
+              }))}
+            />
           </div>
         )}
 

@@ -24,13 +24,14 @@ const INITIAL: FormState = {
   phone: "",
   attending: "",
   adultCount: 2,
-  children: [{ first_name: "", last_name: "" }],
+  children: [],
   dietary: "",
 };
 
 type Props = {
   initialKidCount: number;
   maxKids: number;
+  reservedKids: number;
 };
 
 function formatPhone(input: string): string {
@@ -40,7 +41,12 @@ function formatPhone(input: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
-export default function RsvpForm({ initialKidCount, maxKids }: Props) {
+export default function RsvpForm({
+  initialKidCount,
+  maxKids,
+  reservedKids,
+}: Props) {
+  const publicCap = Math.max(0, maxKids - reservedKids);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [submitting, setSubmitting] = useState(false);
   const [confirmedKids, setConfirmedKids] = useState(initialKidCount);
@@ -98,7 +104,7 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
     ? form.children.filter((c) => c.first_name.trim().length > 0)
     : [];
   const childCount = validChildren.length;
-  const spotsLeft = Math.max(0, maxKids - confirmedKids);
+  const spotsLeft = Math.max(0, publicCap - confirmedKids);
   const wouldOverflow = attending && childCount > 0 && childCount > spotsLeft;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -152,7 +158,7 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
       setConfirmedKids(liveCount);
 
       const isWaitlist =
-        attending && childCount > 0 && liveCount + childCount > maxKids;
+        attending && childCount > 0 && liveCount + childCount > publicCap;
 
       const cleanChildren = validChildren.map((c) => ({
         first_name: c.first_name.trim(),
@@ -242,6 +248,12 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
             </span>
           </div>
 
+          {/* Adults without kids notice */}
+          <p className="rounded-xl bg-sonic-blue/5 px-4 py-3 text-xs text-slate-600">
+            Coming solo or just with a partner? Still RSVP so we get the
+            headcount — the kid spots only count if you're bringing children.
+          </p>
+
           {/* Parent name */}
           <div>
             <span className="mb-2 block text-sm font-bold text-sonic-blue">
@@ -317,60 +329,67 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
                     Children Attending
                   </span>
                   <span className="text-xs text-slate-500">
-                    {childCount} {childCount === 1 ? "child" : "children"}
+                    {childCount === 0
+                      ? "Optional — skip if just adults"
+                      : `${childCount} ${childCount === 1 ? "child" : "children"}`}
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
-                  {form.children.map((child, i) => (
-                    <div
-                      key={i}
-                      className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-sonic-blue/70">
-                          Child {i + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeChild(i)}
-                          aria-label={`Remove child ${i + 1}`}
-                          className="-m-1 rounded-full p-1 text-slate-400 transition hover:bg-sonic-red/10 hover:text-sonic-red"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                {form.children.length > 0 && (
+                  <div className="mb-2.5 space-y-2.5">
+                    {form.children.map((child, i) => (
+                      <div
+                        key={i}
+                        className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-sonic-blue/70">
+                            Child {i + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeChild(i)}
+                            aria-label={`Remove child ${i + 1}`}
+                            className="-m-1 rounded-full p-1 text-slate-400 transition hover:bg-sonic-red/10 hover:text-sonic-red"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Input
+                            id={`child-${i}-first`}
+                            value={child.first_name}
+                            onChange={(v) => updateChild(i, "first_name", v)}
+                            placeholder="First name *"
+                            autoComplete="off"
+                          />
+                          <Input
+                            id={`child-${i}-last`}
+                            value={child.last_name}
+                            onChange={(v) => updateChild(i, "last_name", v)}
+                            placeholder="Last name (optional)"
+                            autoComplete="off"
+                          />
+                        </div>
                       </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Input
-                          id={`child-${i}-first`}
-                          value={child.first_name}
-                          onChange={(v) => updateChild(i, "first_name", v)}
-                          placeholder="First name *"
-                          autoComplete="off"
-                        />
-                        <Input
-                          id={`child-${i}-last`}
-                          value={child.last_name}
-                          onChange={(v) => updateChild(i, "last_name", v)}
-                          placeholder="Last name (optional)"
-                          autoComplete="off"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 <button
                   type="button"
                   onClick={addChild}
                   disabled={form.children.length >= 10}
-                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sonic-blue/25 bg-white px-4 py-3 text-sm font-bold text-sonic-blue transition hover:border-sonic-blue/50 hover:bg-sonic-blue/5 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sonic-blue/25 bg-white px-4 py-3 text-sm font-bold text-sonic-blue transition hover:border-sonic-blue/50 hover:bg-sonic-blue/5 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <UserPlus className="h-4 w-4" />
-                  Add another child
+                  {form.children.length === 0
+                    ? "Add a child"
+                    : "Add another child"}
                 </button>
                 <p className="mt-1.5 text-xs text-slate-500">
-                  Just first name is required per child — last name is optional.
+                  First name required per child · last name optional · leave
+                  empty if no kids.
                 </p>
               </div>
             </>

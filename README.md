@@ -30,6 +30,7 @@ Open <http://localhost:3000>. The admin dashboard lives at
 | `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | Lets the admin page read all RSVPs |
 | `ADMIN_TOKEN` | **Server only** | URL slug that gates `/admin/[token]` |
 | `NEXT_PUBLIC_KID_CAPACITY` | Public | Max confirmed kids (defaults to 20) |
+| `NEXT_PUBLIC_RESERVED_KID_SPOTS` | Public | Buffer spots to hold back (defaults to 0) |
 
 ## Supabase setup
 
@@ -90,6 +91,11 @@ grant execute on function public.get_confirmed_kid_count()
 
 Visit `/admin/<ADMIN_TOKEN>`. You'll see:
 
+- **Group text composer** — pick an audience (Confirmed / Waitlist /
+  Can't make it), choose a template or write a custom message, then
+  tap "Open in Messages" to launch your phone's SMS app with every
+  selected number pre-filled. Copy buttons for numbers + message body
+  as a fallback.
 - Live stats: confirmed kids vs. cap, confirmed adults, waitlist, regrets
 - Sections for confirmed / waitlisted / can't-make-it
 - One-tap **Text** and **Call** buttons per phone number

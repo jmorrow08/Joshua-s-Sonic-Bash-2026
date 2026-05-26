@@ -18,6 +18,9 @@ import { supabase } from "@/lib/supabase";
 const VENUE_ADDRESS = "Makutu Island, 6900 W Chandler Blvd, Chandler, AZ 82509";
 const MAP_QUERY = encodeURIComponent(VENUE_ADDRESS);
 const KID_CAPACITY = Number(process.env.NEXT_PUBLIC_KID_CAPACITY || 20);
+const RESERVED_KID_SPOTS = Number(
+  process.env.NEXT_PUBLIC_RESERVED_KID_SPOTS || 0
+);
 
 async function getConfirmedKidCount(): Promise<number> {
   noStore();
@@ -202,6 +205,7 @@ export default async function Home() {
             <RsvpForm
               initialKidCount={confirmedKids}
               maxKids={KID_CAPACITY}
+              reservedKids={RESERVED_KID_SPOTS}
             />
           </div>
         </div>
