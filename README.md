@@ -40,12 +40,13 @@ table first if you already created the v1 version):
 create table public.rsvps (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  parent_name text not null,
+  parent_first_name text not null,
+  parent_last_name text,
   phone text not null,
   attending boolean not null,
   adult_count integer not null default 1,
   child_count integer not null default 0,
-  child_names text,
+  children jsonb not null default '[]'::jsonb,
   dietary_restrictions text,
   is_waitlist boolean not null default false
 );
@@ -82,7 +83,7 @@ grant execute on function public.get_confirmed_kid_count()
 
 1. **Hero** — flyer placeholder, live countdown to June 13 2026 3:30 PM MST, sticky RSVP CTA
 2. **Event Details** — date/time/location cards + embedded Google Map
-3. **RSVP Form** — name, phone, attendance, adults/kids counts, optional kid names + dietary; auto-waitlists when 20 kids are confirmed
+3. **RSVP Form** — parent name (last optional), phone, attendance, adult count, per-child name rows (first required, last optional), optional dietary; auto-waitlists when 20 kids are confirmed; success modal with calendar link
 4. **Gift Guide** — "presence > presents" note plus three idea cards
 
 ### Admin dashboard

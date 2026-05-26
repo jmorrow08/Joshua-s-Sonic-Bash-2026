@@ -12,18 +12,38 @@ import { getAdminClient } from "@/lib/supabase-admin";
 
 const KID_CAPACITY = Number(process.env.NEXT_PUBLIC_KID_CAPACITY || 20);
 
+type Child = { first_name: string; last_name: string | null };
+
 type Rsvp = {
   id: string;
   created_at: string;
-  parent_name: string;
+  parent_first_name: string;
+  parent_last_name: string | null;
   phone: string;
   attending: boolean;
   adult_count: number;
   child_count: number;
-  child_names: string | null;
+  children: Child[] | null;
   dietary_restrictions: string | null;
   is_waitlist: boolean;
 };
+
+function parentName(r: Rsvp): string {
+  const last = r.parent_last_name?.trim();
+  return last ? `${r.parent_first_name} ${last}` : r.parent_first_name;
+}
+
+function renderChildren(children: Child[] | null): string {
+  if (!children || children.length === 0) return "";
+  return children
+    .map((c) => {
+      const first = (c.first_name || "").trim();
+      const last = (c.last_name || "").trim();
+      return last ? `${first} ${last}` : first;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
 
 function formatPhone(digits: string): string {
   const d = (digits || "").replace(/\D/g, "");
@@ -59,7 +79,7 @@ export default async function AdminPage({
     const { data, error } = await supabase
       .from("rsvps")
       .select(
-        "id, created_at, parent_name, phone, attending, adult_count, child_count, child_names, dietary_restrictions, is_waitlist"
+        "id, created_at, parent_first_name, parent_last_name, phone, attending, adult_count, child_count, children, dietary_restrictions, is_waitlist"
       )
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -271,40 +291,41 @@ function RsvpSection({
                 <th className="px-4 py-3 font-bold">Phone</th>
                 <th className="px-4 py-3 text-center font-bold">Adults</th>
                 <th className="px-4 py-3 text-center font-bold">Kids</th>
-                <th className="px-4 py-3 font-bold">Kids' names</th>
+                <th className="px-4 py-3 font-bold">Children</th>
                 <th className="px-4 py-3 font-bold">Dietary</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rsvps.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-xs text-slate-500">
-                    {formatDate(r.created_at)}
-                  </td>
-                  <td className="px-4 py-3 font-bold text-slate-900">
-                    {r.parent_name}
-                  </td>
-                  <td className="px-4 py-3">
-                    <PhoneLinks phone={r.phone} />
-                  </td>
-                  <td className="px-4 py-3 text-center tabular-nums text-slate-700">
-                    {r.adult_count}
-                  </td>
-                  <td className="px-4 py-3 text-center tabular-nums text-slate-700">
-                    {r.child_count}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {r.child_names || (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {r.dietary_restrictions || (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {rsvps.map((r) => {
+                const kids = renderChildren(r.children);
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {formatDate(r.created_at)}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-900">
+                      {parentName(r)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <PhoneLinks phone={r.phone} />
+                    </td>
+                    <td className="px-4 py-3 text-center tabular-nums text-slate-700">
+                      {r.adult_count}
+                    </td>
+                    <td className="px-4 py-3 text-center tabular-nums text-slate-700">
+                      {r.child_count}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {kids || <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {r.dietary_restrictions || (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -316,7 +337,7 @@ function RsvpSection({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-bold text-slate-900">
-                    {r.parent_name}
+                    {parentName(r)}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {formatDate(r.created_at)}
@@ -358,22 +379,28 @@ function RsvpSection({
                 </div>
               </div>
 
-              {(r.child_names || r.dietary_restrictions) && (
-                <div className="mt-3 space-y-1 text-sm">
-                  {r.child_names && (
-                    <p className="text-slate-700">
-                      <span className="font-bold text-slate-500">Kids: </span>
-                      {r.child_names}
-                    </p>
-                  )}
-                  {r.dietary_restrictions && (
-                    <p className="text-slate-700">
-                      <span className="font-bold text-slate-500">Dietary: </span>
-                      {r.dietary_restrictions}
-                    </p>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const kids = renderChildren(r.children);
+                if (!kids && !r.dietary_restrictions) return null;
+                return (
+                  <div className="mt-3 space-y-1 text-sm">
+                    {kids && (
+                      <p className="text-slate-700">
+                        <span className="font-bold text-slate-500">Kids: </span>
+                        {kids}
+                      </p>
+                    )}
+                    {r.dietary_restrictions && (
+                      <p className="text-slate-700">
+                        <span className="font-bold text-slate-500">
+                          Dietary:{" "}
+                        </span>
+                        {r.dietary_restrictions}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </li>
           ))}
         </ul>

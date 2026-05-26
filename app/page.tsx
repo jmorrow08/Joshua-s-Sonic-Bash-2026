@@ -58,7 +58,7 @@ export default async function Home() {
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-white/85 sm:text-lg">
               Gotta go fast! Help us celebrate five super-sonic years with rings,
-              chili dogs, and a whole lot of speed.
+              pizza, and a whole lot of speed.
             </p>
           </div>
 
@@ -253,8 +253,8 @@ export default async function Home() {
           />
           <GiftCard
             icon={<Shirt className="h-6 w-6" />}
-            title="Clothes (Size 5/6)"
-            description="Tees, PJs, swim trunks — bonus points for blue hedgehogs."
+            title="Clothes & Shoes"
+            description="Clothing size 4/5 · Shoe size 10. Tees, PJs, swim trunks — bonus points for blue hedgehogs."
             accent="gold"
           />
         </div>

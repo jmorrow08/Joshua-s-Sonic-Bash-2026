@@ -1,27 +1,30 @@
 "use client";
 
-import { Loader2, Minus, Plus, Send } from "lucide-react";
+import { Loader2, Minus, Plus, Send, Trash2, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
 import Toast, { type ToastVariant } from "./Toast";
+import SuccessModal, { type SuccessVariant } from "./SuccessModal";
+
+type Child = { first_name: string; last_name: string };
 
 type FormState = {
-  parentName: string;
+  parentFirstName: string;
+  parentLastName: string;
   phone: string;
   attending: "yes" | "no" | "";
   adultCount: number;
-  childCount: number;
-  childNames: string;
+  children: Child[];
   dietary: string;
 };
 
 const INITIAL: FormState = {
-  parentName: "",
+  parentFirstName: "",
+  parentLastName: "",
   phone: "",
   attending: "",
   adultCount: 2,
-  childCount: 1,
-  childNames: "",
+  children: [{ first_name: "", last_name: "" }],
   dietary: "",
 };
 
@@ -30,7 +33,6 @@ type Props = {
   maxKids: number;
 };
 
-// Light formatting only — keep digits, render as (XXX) XXX-XXXX as you type.
 function formatPhone(input: string): string {
   const digits = input.replace(/\D/g, "").slice(0, 10);
   if (digits.length < 4) return digits;
@@ -47,32 +49,68 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
     variant: ToastVariant;
     title: string;
     message?: string;
-  }>({ open: false, variant: "success", title: "" });
+  }>({ open: false, variant: "error", title: "" });
+  const [success, setSuccess] = useState<{
+    open: boolean;
+    variant: SuccessVariant;
+    parentFirstName: string;
+    childCount: number;
+    adultCount: number;
+    phoneFormatted: string;
+  }>({
+    open: false,
+    variant: "confirmed",
+    parentFirstName: "",
+    childCount: 0,
+    adultCount: 0,
+    phoneFormatted: "",
+  });
 
   const update =
     <K extends keyof FormState>(key: K) =>
     (value: FormState[K]) =>
       setForm((prev) => ({ ...prev, [key]: value }));
 
-  const spotsLeft = Math.max(0, maxKids - confirmedKids);
+  const updateChild = (index: number, key: keyof Child, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      children: prev.children.map((c, i) =>
+        i === index ? { ...c, [key]: value } : c
+      ),
+    }));
+  };
+
+  const addChild = () =>
+    setForm((prev) =>
+      prev.children.length >= 10
+        ? prev
+        : { ...prev, children: [...prev.children, { first_name: "", last_name: "" }] }
+    );
+
+  const removeChild = (index: number) =>
+    setForm((prev) => ({
+      ...prev,
+      children: prev.children.filter((_, i) => i !== index),
+    }));
+
   const attending = form.attending === "yes";
-  const wouldOverflow =
-    attending && form.childCount > 0 && form.childCount > spotsLeft;
+  const validChildren = attending
+    ? form.children.filter((c) => c.first_name.trim().length > 0)
+    : [];
+  const childCount = validChildren.length;
+  const spotsLeft = Math.max(0, maxKids - confirmedKids);
+  const wouldOverflow = attending && childCount > 0 && childCount > spotsLeft;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting) return;
 
-    if (
-      !form.parentName.trim() ||
-      !form.phone.trim() ||
-      !form.attending
-    ) {
+    if (!form.parentFirstName.trim() || !form.phone.trim() || !form.attending) {
       setToast({
         open: true,
         variant: "error",
         title: "Missing info",
-        message: "Please fill out name, phone, and whether you'll attend.",
+        message: "Please fill out first name, phone, and whether you'll attend.",
       });
       return;
     }
@@ -88,10 +126,25 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
       return;
     }
 
+    if (attending) {
+      const hasIncomplete = form.children.some(
+        (c) => c.last_name.trim() && !c.first_name.trim()
+      );
+      if (hasIncomplete) {
+        setToast({
+          open: true,
+          variant: "error",
+          title: "Each child needs a first name",
+          message:
+            "Add a first name for every child, or remove the empty row.",
+        });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      // Re-check the live count right before insert in case other people
-      // RSVPed while this form was open.
+      // Re-check live count so we waitlist correctly under race conditions.
       const { data: liveCountRaw } = await supabase.rpc(
         "get_confirmed_kid_count"
       );
@@ -99,39 +152,46 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
       setConfirmedKids(liveCount);
 
       const isWaitlist =
-        attending &&
-        form.childCount > 0 &&
-        liveCount + form.childCount > maxKids;
+        attending && childCount > 0 && liveCount + childCount > maxKids;
+
+      const cleanChildren = validChildren.map((c) => ({
+        first_name: c.first_name.trim(),
+        last_name: c.last_name.trim() || null,
+      }));
 
       const { error } = await supabase.from("rsvps").insert({
-        parent_name: form.parentName.trim(),
+        parent_first_name: form.parentFirstName.trim(),
+        parent_last_name: form.parentLastName.trim() || null,
         phone: digits,
         attending,
         adult_count: attending ? form.adultCount : 0,
-        child_count: attending ? form.childCount : 0,
-        child_names: attending ? form.childNames.trim() || null : null,
+        child_count: attending ? childCount : 0,
+        children: attending ? cleanChildren : [],
         dietary_restrictions: form.dietary.trim() || null,
         is_waitlist: isWaitlist,
       });
 
       if (error) throw error;
 
-      let title: string;
-      let message: string;
-      if (!attending) {
-        title = "RSVP received";
-        message = "Thanks for letting us know — you'll be missed!";
-      } else if (isWaitlist) {
-        title = "You're on the kids waitlist 🎟️";
-        message =
-          "We're at the 20-kid cap, but we'll text you the moment a spot opens up.";
-      } else {
-        title = "RSVP confirmed! 🦔💨";
-        message = "We can't wait to see you at the bash!";
-        setConfirmedKids((c) => c + form.childCount);
+      const variant: SuccessVariant = !attending
+        ? "regret"
+        : isWaitlist
+          ? "waitlist"
+          : "confirmed";
+
+      setSuccess({
+        open: true,
+        variant,
+        parentFirstName: form.parentFirstName.trim(),
+        childCount: attending ? childCount : 0,
+        adultCount: attending ? form.adultCount : 0,
+        phoneFormatted: formatPhone(digits),
+      });
+
+      if (variant === "confirmed") {
+        setConfirmedKids((c) => c + childCount);
       }
 
-      setToast({ open: true, variant: "success", title, message });
       setForm(INITIAL);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
@@ -182,15 +242,29 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
             </span>
           </div>
 
-          <Field
-            id="parentName"
-            label="Parent's First & Last Name"
-            required
-            value={form.parentName}
-            onChange={update("parentName")}
-            placeholder="Jane Doe"
-            autoComplete="name"
-          />
+          {/* Parent name */}
+          <div>
+            <span className="mb-2 block text-sm font-bold text-sonic-blue">
+              Parent's Name <span className="text-sonic-red">*</span>
+            </span>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                id="parentFirstName"
+                value={form.parentFirstName}
+                onChange={update("parentFirstName")}
+                placeholder="First name"
+                autoComplete="given-name"
+                required
+              />
+              <Input
+                id="parentLastName"
+                value={form.parentLastName}
+                onChange={update("parentLastName")}
+                placeholder="Last name (optional)"
+                autoComplete="family-name"
+              />
+            </div>
+          </div>
 
           <Field
             id="phone"
@@ -205,22 +279,19 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
             hint="So we can text confirmation & reminders."
           />
 
+          {/* Attending */}
           <div>
             <span className="mb-2 block text-sm font-bold text-sonic-blue">
               Will you be attending? <span className="text-sonic-red">*</span>
             </span>
             <div className="grid gap-2 sm:grid-cols-2">
               <RadioPill
-                name="attending"
-                value="yes"
                 checked={form.attending === "yes"}
                 onChange={() => update("attending")("yes")}
                 label="Yes, we'll be there!"
                 accent="gold"
               />
               <RadioPill
-                name="attending"
-                value="no"
                 checked={form.attending === "no"}
                 onChange={() => update("attending")("no")}
                 label="Sorry, we can't make it"
@@ -230,7 +301,7 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
           </div>
 
           {attending && (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <>
               <NumberStepper
                 id="adultCount"
                 label="Adults Attending"
@@ -239,25 +310,70 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
                 value={form.adultCount}
                 onChange={(v) => update("adultCount")(v)}
               />
-              <NumberStepper
-                id="childCount"
-                label="Children Attending"
-                min={0}
-                max={10}
-                value={form.childCount}
-                onChange={(v) => update("childCount")(v)}
-              />
-            </div>
-          )}
 
-          {attending && form.childCount > 0 && (
-            <Field
-              id="childNames"
-              label="Children's Names & Ages (optional)"
-              value={form.childNames}
-              onChange={update("childNames")}
-              placeholder="e.g. Sam (5) and Riley (3)"
-            />
+              <div>
+                <div className="mb-2 flex items-baseline justify-between">
+                  <span className="text-sm font-bold text-sonic-blue">
+                    Children Attending
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {childCount} {childCount === 1 ? "child" : "children"}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {form.children.map((child, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-sonic-blue/70">
+                          Child {i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeChild(i)}
+                          aria-label={`Remove child ${i + 1}`}
+                          className="-m-1 rounded-full p-1 text-slate-400 transition hover:bg-sonic-red/10 hover:text-sonic-red"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Input
+                          id={`child-${i}-first`}
+                          value={child.first_name}
+                          onChange={(v) => updateChild(i, "first_name", v)}
+                          placeholder="First name *"
+                          autoComplete="off"
+                        />
+                        <Input
+                          id={`child-${i}-last`}
+                          value={child.last_name}
+                          onChange={(v) => updateChild(i, "last_name", v)}
+                          placeholder="Last name (optional)"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addChild}
+                  disabled={form.children.length >= 10}
+                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sonic-blue/25 bg-white px-4 py-3 text-sm font-bold text-sonic-blue transition hover:border-sonic-blue/50 hover:bg-sonic-blue/5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Add another child
+                </button>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Just first name is required per child — last name is optional.
+                </p>
+              </div>
+            </>
           )}
 
           {wouldOverflow && (
@@ -310,8 +426,7 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
           </button>
 
           <p className="text-center text-xs text-slate-500">
-            Required fields marked with{" "}
-            <span className="text-sonic-red">*</span>
+            Required fields marked with <span className="text-sonic-red">*</span>
           </p>
         </div>
       </form>
@@ -323,7 +438,49 @@ export default function RsvpForm({ initialKidCount, maxKids }: Props) {
         message={toast.message}
         onClose={() => setToast((t) => ({ ...t, open: false }))}
       />
+
+      <SuccessModal
+        open={success.open}
+        variant={success.variant}
+        parentFirstName={success.parentFirstName}
+        childCount={success.childCount}
+        adultCount={success.adultCount}
+        phoneFormatted={success.phoneFormatted}
+        onClose={() => setSuccess((s) => ({ ...s, open: false }))}
+      />
     </>
+  );
+}
+
+type InputProps = {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  autoComplete?: string;
+};
+
+function Input({
+  id,
+  value,
+  onChange,
+  placeholder,
+  required,
+  autoComplete,
+}: InputProps) {
+  return (
+    <input
+      id={id}
+      name={id}
+      type="text"
+      required={required}
+      autoComplete={autoComplete}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sonic-electric focus:bg-white focus:ring-4 focus:ring-sonic-electric/15"
+    />
   );
 }
 
@@ -379,15 +536,13 @@ function Field({
 }
 
 type RadioPillProps = {
-  name: string;
-  value: string;
   checked: boolean;
   onChange: () => void;
   label: string;
   accent: "gold" | "red";
 };
 
-function RadioPill({ name, value, checked, onChange, label, accent }: RadioPillProps) {
+function RadioPill({ checked, onChange, label, accent }: RadioPillProps) {
   const accentClasses =
     accent === "gold"
       ? "peer-checked:border-sonic-gold peer-checked:bg-sonic-gold/10 peer-checked:text-sonic-blue"
@@ -397,8 +552,7 @@ function RadioPill({ name, value, checked, onChange, label, accent }: RadioPillP
     <label className="relative cursor-pointer">
       <input
         type="radio"
-        name={name}
-        value={value}
+        name="attending"
         checked={checked}
         onChange={onChange}
         className="peer sr-only"
