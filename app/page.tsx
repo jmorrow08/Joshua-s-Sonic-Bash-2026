@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import {
   Calendar,
   Clock,
@@ -11,11 +12,25 @@ import {
 import CountdownTimer from "@/components/CountdownTimer";
 import RsvpForm from "@/components/RsvpForm";
 import StickyRsvpButton from "@/components/StickyRsvpButton";
+import { supabase } from "@/lib/supabase";
 
 const VENUE_ADDRESS = "Makutu Island, 6900 W Chandler Blvd, Chandler, AZ 82509";
 const MAP_QUERY = encodeURIComponent(VENUE_ADDRESS);
+const KID_CAPACITY = Number(process.env.NEXT_PUBLIC_KID_CAPACITY || 20);
 
-export default function Home() {
+async function getConfirmedKidCount(): Promise<number> {
+  noStore();
+  try {
+    const { data, error } = await supabase.rpc("get_confirmed_kid_count");
+    if (error || typeof data !== "number") return 0;
+    return data;
+  } catch {
+    return 0;
+  }
+}
+
+export default async function Home() {
+  const confirmedKids = await getConfirmedKidCount();
   return (
     <main className="min-h-screen bg-white">
       <StickyRsvpButton />
@@ -130,7 +145,7 @@ export default function Home() {
             icon={<Calendar className="h-6 w-6" />}
             label="When"
             primary="Saturday, June 13, 2026"
-            secondary="3:00 PM – 6:00 PM"
+            secondary="3:30 PM – 6:30 PM"
             accent="blue"
           />
           <DetailCard
@@ -198,7 +213,10 @@ export default function Home() {
           </div>
 
           <div className="mt-8">
-            <RsvpForm />
+            <RsvpForm
+              initialKidCount={confirmedKids}
+              maxKids={KID_CAPACITY}
+            />
           </div>
         </div>
       </section>

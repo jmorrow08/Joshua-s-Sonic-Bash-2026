@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-// June 13, 2026 at 3:00 PM MST (MST = UTC-7, no DST in Arizona)
-const TARGET_DATE = new Date("2026-06-13T15:00:00-07:00").getTime();
+// June 13, 2026 at 3:30 PM MST (MST = UTC-7, no DST in Arizona)
+const TARGET_DATE = new Date("2026-06-13T15:30:00-07:00").getTime();
 
 type TimeLeft = {
   days: number;
