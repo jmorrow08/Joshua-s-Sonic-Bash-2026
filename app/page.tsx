@@ -68,10 +68,10 @@ export default async function Home() {
 
           {/* Flyer */}
           <div className="mx-auto mt-8 max-w-md sm:max-w-lg">
-            <div className="relative aspect-[1162/1714] overflow-hidden rounded-3xl border-4 border-sonic-gold/60 bg-sonic-blue shadow-2xl">
+            <div className="relative aspect-[848/1254] overflow-hidden rounded-3xl border-4 border-sonic-gold/60 bg-sonic-blue shadow-2xl">
               <Image
-                src="/flyer.webp"
-                alt="Sonic's Birthday Bash — Joshua is turning 5 — Saturday June 13, 2026, 3:30 PM–6:30 PM at Makutu Island, 6900 W Chandler Blvd, Chandler AZ 82509. RSVP online or call/text (602) 816-2383."
+                src="/flyer.jpg"
+                alt="Sonic's Birthday Bash — Joshua is turning 5 — Saturday June 13, 2026, 3:30 PM–6:30 PM at Makutu Island, 6900 W Chandler Blvd, Chandler AZ 82509. RSVP online or call/text (602) 816-2393."
                 fill
                 sizes="(min-width: 640px) 512px, 90vw"
                 className="object-contain"
